@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# Docker simplified.
+# https://github.com/astappiev/simple-docker
+#
 
 # Helper function to print container info
 _print_container_info() {
@@ -12,7 +16,7 @@ _print_container_info() {
 '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}},{{range .NetworkSettings.Networks}}{{.Gateway}} {{end}}' \
         "$container_id")
 
-    echo "$container_inspect" >>/tmp/dz.ip.txt
+    echo "$container_inspect" >>/tmp/d.ip.txt
 }
 
 # Helper function to print network info
@@ -25,12 +29,12 @@ _print_network_info() {
         '{{slice .Id 0 12}},{{.Name}},{{range .IPAM.Config}}{{.Subnet}}{{end}},{{range .IPAM.Config}}{{if (index . "Gateway")}}{{.Gateway}}{{end}}{{end}}' \
         "$network_id")
 
-    echo "$network_inspect" >>/tmp/dz.net.txt
+    echo "$network_inspect" >>/tmp/d.net.txt
 }
 
 # ip [id] - Prints out a container's name, IPs, ports, networks and gateways. If no id or name provided, prints info for all containers.
-function dz.ip() {
-    echo "Container Id,Container Name,Container IPs,Container Ports,Container Networks,Container Gateways" >/tmp/dz.ip.txt
+function d.ip() {
+    echo "Container Id,Container Name,Container IPs,Container Ports,Container Networks,Container Gateways" >/tmp/d.ip.txt
 
     local all_flag=""
     local container_search="$1"
@@ -51,13 +55,14 @@ function dz.ip() {
         done
     fi
 
-    column -s "," -t /tmp/dz.ip.txt
-    rm /tmp/dz.ip.txt
+    awk -F, '{ for (i=1; i<=NF; i++) printf "%-20s", $i; print "" }' /tmp/d.ip.txt
+    #column -s "," -t /tmp/d.ip.txt
+    rm -f /tmp/d.ip.txt
 }
 
 # net [id] - Prints out a networks's name, IPs and gateways. If no id or name provided, prints info for all networks.
-function dz.net() {
-    echo "Network ID,Network Name,Network Subnet,Network Gateway" >/tmp/dz.net.txt
+function d.net() {
+    echo "Network ID,Network Name,Network Subnet,Network Gateway" >/tmp/d.net.txt
 
     local network_id
     local network_search="$1"
@@ -74,24 +79,21 @@ function dz.net() {
         done
     fi
 
-    column -s "," -t /tmp/dz.net.txt
-    rm /tmp/dz.net.txt
+    column -s "," -t /tmp/d.net.txt
+    rm /tmp/d.net.txt
 }
 
 # sh [id] - Attach a shell to a docker with an id
-function dz.sh() {
-    local user_id="$1"
-    local container_id="$2"
-
-    if [ -z "$container_id" ]; then
-        docker exec -it "$user_id" /bin/sh -c "[ -e /bin/bash ] && /bin/bash || /bin/sh"
+function d.sh() {
+    if [ -z "$2" ]; then
+        docker exec -it "$1" /bin/sh -c "[ -e /bin/bash ] && /bin/bash || /bin/sh"
     else
-        docker exec -u "$user_id" -it "$container_id" /bin/sh -c "[ -e /bin/bash ] && /bin/bash || /bin/sh"
+        docker exec -u "$1" -it "$2" /bin/sh -c "[ -e /bin/bash ] && /bin/bash || /bin/sh"
     fi
 }
 
 # logs [id] - Tail and follow the logs of a docker container
-function dz.logs() {
+function d.logs() {
     local num_lines="$1"
     local container_id="$2"
 
@@ -103,7 +105,7 @@ function dz.logs() {
 }
 
 # v [filter] - Print volumes with sizes
-function dz.v() {
+function d.v() {
     local filter="$1"
     if [ -z "$filter" ]; then
         docker volume ls -f dangling=true --format '{{ .Mountpoint }}' | sudo xargs -L1 du -sh
@@ -115,7 +117,7 @@ function dz.v() {
 }
 
 # bb [command] - Start a busybox container with an optional command
-function dz.bb() {
+function d.bb() {
     if [ -t 0 ]; then
         docker run -it --rm busybox "$@"
     else
@@ -124,7 +126,7 @@ function dz.bb() {
 }
 
 # bb [command] - Start a ubuntu container with an optional command
-function dz.ub() {
+function d.ub() {
     if [ -t 0 ]; then
         docker run -it --rm catthehacker/ubuntu:act-latest "$@"
     else
@@ -133,28 +135,26 @@ function dz.ub() {
 }
 
 # help [command] - Show help for a specific command
-function dz.help() {
-    if [ "$(type -t dz."$1")" == "function" ]; then
-        declare -f "dz.$1" | sed '1,2d;$d' | sed -e "s/^    //"
+function d.help() {
+    if [ "$(type -t d."$1")" == "function" ]; then
+        declare -f "d.$1" | sed '1,2d;$d' | sed -e "s/^    //"
     else
-        echo "ez docker"
-        echo "==== COMMANDS ========="
-        echo "dz                        runs 'dz ip' command"
-        echo "dz ip [-all] [ID]         print a container's name, IPs, ports, networks and gateways (all containers running if blank)"
+        echo "d                        alias for \`docker\`"
+        echo "d ip [-all] [ID]         print a container's name, IPs, ports, networks and gateways (all containers running if blank)"
         echo "                          -all option to search non running containers"
-        echo "dz net [ID]               print a networks's name, IPs and gateways (all networks if blank)"
-        echo "dz v [filter]             prints volumes with sizes (dangling if blank, all if 'all')"
-        echo "dz sh [USERNAME] <ID>     bash into a container with optional username"
-        echo "dz logs [NUM_LINES] <ID>  tail (and follow) a container's logs (0 lines if blank)"
-        echo "dz bb [COMMAND]           start a busybox container with optional command"
-        echo "dz ub [COMMAND]           start a busybox container with optional command"
+        echo "d net [ID]               print a networks's name, IPs and gateways (all networks if blank)"
+        echo "d v [filter]             prints volumes with sizes (dangling if blank, all if 'all')"
+        echo "d sh [USERNAME] <ID>     bash into a container with optional username"
+        echo "d logs [NUM_LINES] <ID>  tail (and follow) a container's logs (0 lines if blank)"
+        echo "d bb [COMMAND]           start a busybox container with optional command"
+        echo "d ub [COMMAND]           start a busybox container with optional command"
     fi
 }
 
-if [ "$(type -t dz."$1")" == "function" ]; then
-    "dz.$@"
+if [ "$(type -t d."$1")" == "function" ]; then
+    "d.$@"
 elif [ "$1" == "-h" ]; then
-    dz.help
+    d.help
 elif [ -z "$1" ]; then
-    dz.ip
+    docker $@
 fi
