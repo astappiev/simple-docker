@@ -4,12 +4,15 @@ It is a collection of shortcuts to common docker commands. The goal is to provid
 
 ## Installation
 
-The recommended way to install is to downaload the scripts somewhere in your system and add the path to your `.bashrc` or `.bash_profile`.
+You need to downaload the scripts somewhere on your system and add them to your `.bashrc` profile.
+
+Convenientlu, you can use the following commands to download and install the scripts:
 
 ```bash
-alias d='. ~/.local/d.sh'
-alias dc='. ~/.local/dc.sh'
+wget -qO- https://raw.githubusercontent.com/astappiev/simple-docker/refs/heads/main/install.sh | bash
 ```
+
+But always make sure to review the script before running it. Especially if you are not me.
 
 ### Shortcuts of `d` command
 
