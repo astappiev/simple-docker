@@ -33,7 +33,7 @@ function dc.u() {
     fi
 }
 
-# Start docker compose
+# Stop docker compose
 function dc.d() {
     $DOCKER_COMPOSE down -t $DEFAULT_TIMEOUT --remove-orphans $@
 }
