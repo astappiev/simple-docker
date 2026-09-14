@@ -130,7 +130,7 @@ function d.l() {
 function d.v() {
 	local filter="${1-}"
 	local sudo_cmd=""
-	
+
 	if [[ "$EUID" -ne 0 ]] && command -v sudo &>/dev/null; then
 		sudo_cmd="sudo"
 		# If rootless docker is used, we don't need sudo
@@ -174,7 +174,7 @@ d ip [-all] [ID]               print container name, IPs, ports, networks, gatew
 d net [ID]                     print network name, subnet and gateway
 d v [filter|all]               print volume sizes (dangling if blank, all if 'all', or any docker --filter expression)
 d sh <ID> [USERNAME]           attach a shell (optionally as USERNAME)
-d l <ID> [NUM_LINES]           follow container logs (default: 0 = all lines)
+d l <ID> [NUM_LINES]           follow container logs (default: 50 lines)
 d bb [COMMAND]                 start a busybox container
 d ub [COMMAND]                 start an ubuntu (act-latest) container
 d help                         show this help

@@ -23,6 +23,11 @@ function dc.d() {
 	"${DOCKER_COMPOSE[@]}" down -t "$DEFAULT_TIMEOUT" --remove-orphans "$@"
 }
 
+# Pull docker compose
+function dc.p() {
+	"${DOCKER_COMPOSE[@]}" pull "$@"
+}
+
 # Start docker compose and follow the logs
 function dc.uf() {
 	dc.u "$@"
@@ -70,12 +75,29 @@ function dc.s() {
 	"${DOCKER_COMPOSE[@]}" ps "$@"
 }
 
-# Up all compose projects in direct subfolders and remove orphans
-function dc.ua() {
-	local dir found
-	shopt -s nullglob
+# Run any command across all compose projects in direct subfolders
+function dc.a() {
+	local cmd="${1-}"
+	if [[ -z "$cmd" ]]; then
+		echo "Usage: dc a <command> [args...]" >&2
+		return 1
+	fi
+	if [[ "$cmd" == "a" || "$cmd" == "-r" || "$cmd" == "--recursive" ]]; then
+		echo "Error: cannot nest recursive/all commands" >&2
+		return 1
+	fi
+	shift
 
+	local runner=()
+	if [[ "$(type -t "dc.$cmd")" == "function" ]]; then
+		runner=("dc.$cmd")
+	else
+		runner=("${DOCKER_COMPOSE[@]}" "$cmd")
+	fi
+
+	local dir found exit_code=0
 	for dir in */; do
+		[[ -d "$dir" ]] || continue
 		(
 			cd "$dir" || exit 1
 			found=""
@@ -84,14 +106,16 @@ function dc.ua() {
 				[[ -f "$f" ]] && found="$f" && break
 			done
 
-			if [ -n "$found" ]; then
+			if [[ -n "$found" ]]; then
 				echo "==> $PWD ($found)"
-				dc.u
+				"${runner[@]}" "$@"
 			else
 				echo "==> $PWD (skip: no compose file)"
 			fi
-		)
+		) || exit_code=1
 	done
+
+	return "$exit_code"
 }
 
 # help [command] - Show help for a specific command
@@ -100,6 +124,7 @@ function dc.help() {
 dc [args...]              alias for docker compose
 dc u [args...]            docker compose up -d
 dc d [args...]            docker compose down -t TIMEOUT --remove-orphans
+dc p [args...]            docker compose pull
 dc l [args...]            docker compose logs -f
 dc r [args...]            restart compose stack
 dc uf [args...]           up and follow logs
@@ -107,19 +132,29 @@ dc rf [args...]           restart and follow logs
 dc sh [service] [index]   shell into service; default: first compose service, index 1
 dc x SERVICE CMD [...]    exec arbitrary command in service
 dc s [args...]            docker compose status (ps)
-dc ua                     up all direct child compose projects and remove orphans
+dc a CMD [args...]        run command in all direct child compose projects
+dc -r|--recursive CMD     alias for dc a CMD
 EOF
 }
 
-cmd="${1-}"
-if [[ $# -gt 0 ]]; then
+if [[ "${1-}" == "-r" || "${1-}" == "--recursive" ]]; then
 	shift
-fi
-
-if [[ -z "$cmd" || "$cmd" == "-h" || "$cmd" == "--help" ]]; then
-	dc.help
-elif [[ "$(type -t "dc.$cmd")" == "function" ]]; then
-	"dc.$cmd" "$@"
+	if [[ $# -eq 0 ]]; then
+		echo "Usage: dc -r <command> [args...]" >&2
+		return 1 2>/dev/null || exit 1
+	fi
+	dc.a "$@"
 else
-	"${DOCKER_COMPOSE[@]}" "$cmd" "$@"
+	cmd="${1-}"
+	if [[ $# -gt 0 ]]; then
+		shift
+	fi
+
+	if [[ -z "$cmd" || "$cmd" == "-h" || "$cmd" == "--help" ]]; then
+		dc.help
+	elif [[ "$(type -t "dc.$cmd")" == "function" ]]; then
+		"dc.$cmd" "$@"
+	else
+		"${DOCKER_COMPOSE[@]}" "$cmd" "$@"
+	fi
 fi
